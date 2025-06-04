@@ -20,6 +20,13 @@ aiofiles==23.2.1
 # Audio processing (lightweight)
 pydub==0.25.1
 
+# Database and caching
+redis==5.0.1
+
+# Vector database and embeddings (for knowledge base)
+chromadb==0.4.15
+sentence-transformers==2.2.2
+
 # Logging
 loguru==0.7.2
 
