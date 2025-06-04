@@ -5,6 +5,7 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+import sys
 
 from voice.twilio_handler import TwilioHandler
 from voice.call_manager import CallManager
@@ -14,21 +15,68 @@ from config.settings import Settings
 # Load environment variables
 load_dotenv()
 
+print("🚀 Starting Brushy Creek Voice Service...")
+print(f"🐍 Python version: {sys.version}")
+print(f"📁 Working directory: {os.getcwd()}")
+
 # Initialize settings
-settings = Settings()
+try:
+    settings = Settings()
+    print("✅ Settings loaded successfully")
+    print(f"🌐 PORT: {settings.app_port}")
+    print(f"🔗 WEBHOOK_BASE_URL: {settings.webhook_base_url}")
+    print(f"🔑 TWILIO_ACCOUNT_SID: {settings.twilio_account_sid[:10] if settings.twilio_account_sid else 'MISSING'}...")
+    print(f"🔑 TWILIO_AUTH_TOKEN: {'SET' if settings.twilio_auth_token else 'MISSING'}")
+    print(f"🔑 OPENAI_API_KEY: {'SET' if settings.openai_api_key else 'MISSING'}")
+except Exception as e:
+    print(f"❌ Settings initialization failed: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 # Initialize services
-call_manager = CallManager()
-government_service = BrushyCreekMUD()
-twilio_handler = TwilioHandler(call_manager, government_service)
+print("🔧 Initializing services...")
+try:
+    call_manager = CallManager()
+    government_service = BrushyCreekMUD()
+    twilio_handler = TwilioHandler(call_manager, government_service)
+    print("✅ Services created successfully")
+except Exception as e:
+    print(f"❌ Service creation failed: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+# Global initialization status
+INITIALIZATION_STATUS = {
+    "call_manager": False,
+    "error": None
+}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await call_manager.initialize()
+    print("🔄 Starting async initialization...")
+    try:
+        await call_manager.initialize()
+        INITIALIZATION_STATUS["call_manager"] = True
+        print("✅ Async initialization completed successfully")
+    except Exception as e:
+        print(f"❌ Async initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
+        INITIALIZATION_STATUS["error"] = str(e)
+        # Don't raise - let the app start but mark as unhealthy
+    
     yield
+    
     # Shutdown
-    await call_manager.cleanup()
+    print("🔄 Shutting down...")
+    try:
+        await call_manager.cleanup()
+        print("✅ Cleanup completed")
+    except Exception as e:
+        print(f"❌ Cleanup failed: {e}")
 
 # Create FastAPI app
 app = FastAPI(
@@ -50,6 +98,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Health check endpoint"""
+    print("📞 Root endpoint called")
     return {
         "status": "healthy",
         "service": "Local Government AI Voice Service",
@@ -116,36 +165,91 @@ async def get_government_info():
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check with debug logging"""
-    twilio_status = twilio_handler.is_configured()
-    openai_status = call_manager.ai_service.is_configured()
-    government_status = True
+    """Detailed health check with proper HTTP status codes"""
+    print("🏥 Health check called")
+    
+    try:
+        # Check individual services
+        twilio_status = twilio_handler.is_configured()
+        government_status = True
+        
+        # Check if async initialization completed
+        call_manager_status = INITIALIZATION_STATUS["call_manager"]
+        openai_status = False
+        if call_manager_status:
+            try:
+                openai_status = call_manager.ai_service.is_configured()
+            except Exception as e:
+                print(f"❌ Error checking OpenAI status: {e}")
 
-    # Log detailed status
-    print("[HEALTH CHECK] Twilio Configured:", twilio_status)
-    print("[HEALTH CHECK] OpenAI Configured:", openai_status)
-    print("[HEALTH CHECK] Government Service:", government_status)
-    print("[HEALTH CHECK] TWILIO_ACCOUNT_SID:", settings.twilio_account_sid)
-    print("[HEALTH CHECK] TWILIO_AUTH_TOKEN set:", bool(settings.twilio_auth_token))
-    print("[HEALTH CHECK] OPENAI_API_KEY set:", bool(settings.openai_api_key))
-    print("[HEALTH CHECK] PORT:", settings.app_port)
-    print("[HEALTH CHECK] WEBHOOK_BASE_URL:", settings.webhook_base_url)
+        # Log detailed status
+        print(f"[HEALTH CHECK] Twilio Configured: {twilio_status}")
+        print(f"[HEALTH CHECK] Call Manager Initialized: {call_manager_status}")
+        print(f"[HEALTH CHECK] OpenAI Configured: {openai_status}")
+        print(f"[HEALTH CHECK] Government Service: {government_status}")
+        print(f"[HEALTH CHECK] Initialization Error: {INITIALIZATION_STATUS.get('error', 'None')}")
+        print(f"[HEALTH CHECK] TWILIO_ACCOUNT_SID: {settings.twilio_account_sid[:10] if settings.twilio_account_sid else 'MISSING'}...")
+        print(f"[HEALTH CHECK] TWILIO_AUTH_TOKEN set: {bool(settings.twilio_auth_token)}")
+        print(f"[HEALTH CHECK] OPENAI_API_KEY set: {bool(settings.openai_api_key)}")
+        print(f"[HEALTH CHECK] PORT: {settings.app_port}")
+        print(f"[HEALTH CHECK] WEBHOOK_BASE_URL: {settings.webhook_base_url}")
 
-    return {
-        "status": "healthy" if twilio_status and openai_status and government_status else "unhealthy",
-        "services": {
-            "twilio": twilio_status,
-            "openai": openai_status,
-            "government": government_status
-        },
-        "env": {
-            "twilio_account_sid": settings.twilio_account_sid,
-            "twilio_auth_token_set": bool(settings.twilio_auth_token),
-            "openai_api_key_set": bool(settings.openai_api_key),
-            "port": settings.app_port,
-            "webhook_base_url": settings.webhook_base_url
+        # Determine overall health
+        overall_healthy = twilio_status and openai_status and government_status and call_manager_status
+        status_text = "healthy" if overall_healthy else "unhealthy"
+        
+        response_data = {
+            "status": status_text,
+            "services": {
+                "twilio": twilio_status,
+                "openai": openai_status,
+                "call_manager": call_manager_status,
+                "government": government_status
+            },
+            "env": {
+                "twilio_account_sid": settings.twilio_account_sid[:10] if settings.twilio_account_sid else "MISSING",
+                "twilio_auth_token_set": bool(settings.twilio_auth_token),
+                "openai_api_key_set": bool(settings.openai_api_key),
+                "port": settings.app_port,
+                "webhook_base_url": settings.webhook_base_url
+            },
+            "initialization_error": INITIALIZATION_STATUS.get("error")
         }
-    }
+        
+        # Return proper HTTP status code
+        if overall_healthy:
+            print("✅ Health check: HEALTHY")
+            return response_data
+        else:
+            print("❌ Health check: UNHEALTHY")
+            # Return 503 Service Unavailable for unhealthy status
+            return Response(
+                content=str(response_data),
+                status_code=503,
+                media_type="application/json"
+            )
+            
+    except Exception as e:
+        print(f"❌ Health check failed with exception: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        error_response = {
+            "status": "error",
+            "error": str(e),
+            "services": {
+                "twilio": False,
+                "openai": False,
+                "call_manager": False,
+                "government": False
+            }
+        }
+        
+        return Response(
+            content=str(error_response),
+            status_code=503,
+            media_type="application/json"
+        )
 
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):
