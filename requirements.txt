@@ -28,12 +28,14 @@ aiofiles==23.2.1
 
 # Web scraping (for knowledge updates)
 beautifulsoup4==4.12.2
+soupsieve>=2.0
 
 # Audio processing (lightweight)
 pydub==0.25.1
 
 # Database and caching
 redis==5.0.1
+aioredis>=2.0.0
 
 # Vector database and embeddings (for knowledge base)
 chromadb==0.4.15
@@ -48,8 +50,11 @@ loguru==0.7.2
 # Basic security
 cryptography==41.0.7
 
-# Core Python utilities
+# Core Python utilities and common container dependencies
 click
 idna
 sniffio
-certifi 
+certifi
+six
+setuptools
+wheel 
