@@ -56,8 +56,29 @@ INITIALIZATION_STATUS = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🔄 Starting async initialization...")
+    print("🚀 Starting Brushy Creek Voice Service...")
+    
+    # Create audio directory for ElevenLabs files
+    audio_dir = "/tmp/voice_audio"
+    os.makedirs(audio_dir, exist_ok=True)
+    print(f"📁 Created audio directory: {audio_dir}")
+    
+    # Print system info for debugging
+    import sys
+    print(f"🐍 Python version: {sys.version}")
+    print(f"📁 Working directory: {os.getcwd()}")
+    
     try:
+        # Load settings
+        global settings, call_manager, twilio_handler, government_service
+        settings = Settings()
+        print("✅ Settings loaded successfully")
+        print(f"🌐 PORT: {settings.app_port}")
+        print(f"🔗 WEBHOOK_BASE_URL: {settings.webhook_base_url}")
+        print(f"🔑 TWILIO_ACCOUNT_SID: {settings.twilio_account_sid[:10] if settings.twilio_account_sid else 'MISSING'}...")
+        print(f"🔑 TWILIO_AUTH_TOKEN: {'SET' if settings.twilio_auth_token else 'MISSING'}")
+        print(f"🔑 OPENAI_API_KEY: {'SET' if settings.openai_api_key else 'MISSING'}")
+        
         await call_manager.initialize()
         INITIALIZATION_STATUS["call_manager"] = True
         print("✅ Async initialization completed successfully")

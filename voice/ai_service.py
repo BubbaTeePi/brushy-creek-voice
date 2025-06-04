@@ -14,9 +14,10 @@ import time
 try:
     from elevenlabs import ElevenLabs, Voice, VoiceSettings
     ELEVENLABS_AVAILABLE = True
+    print("✅ ElevenLabs package imported successfully")
 except ImportError:
     ELEVENLABS_AVAILABLE = False
-    print("ElevenLabs not available, using OpenAI TTS as fallback")
+    print("❌ ElevenLabs not available, using OpenAI TTS as fallback")
 
 from config.settings import Settings
 
@@ -46,16 +47,26 @@ class AIService:
         
         # Initialize ElevenLabs if enabled and available
         if self.settings.use_elevenlabs and ELEVENLABS_AVAILABLE:
+            print(f"🎤 Attempting to initialize ElevenLabs...")
+            print(f"🔑 ElevenLabs API Key set: {bool(self.settings.elevenlabs_api_key)}")
+            
             if self.settings.elevenlabs_api_key:
                 try:
                     self.elevenlabs_client = ElevenLabs(api_key=self.settings.elevenlabs_api_key)
-                    print("ElevenLabs client initialized successfully")
+                    print("✅ ElevenLabs client initialized successfully")
+                    print(f"🎵 Voice ID: {self.settings.elevenlabs_voice_id}")
+                    print(f"🚀 Model: {self.settings.elevenlabs_model}")
                 except Exception as e:
-                    print(f"Error initializing ElevenLabs client: {e}")
-                    print("Falling back to OpenAI TTS")
+                    print(f"❌ Error initializing ElevenLabs client: {e}")
+                    print("🔄 Falling back to OpenAI TTS")
                     self.elevenlabs_client = None
             else:
-                print("ElevenLabs API key not provided, using OpenAI TTS")
+                print("❌ ElevenLabs API key not provided, using OpenAI TTS")
+        else:
+            if not self.settings.use_elevenlabs:
+                print("🔇 ElevenLabs disabled in settings, using OpenAI TTS")
+            if not ELEVENLABS_AVAILABLE:
+                print("❌ ElevenLabs package not available, using OpenAI TTS")
         
         self.is_initialized = True
     
@@ -220,12 +231,14 @@ REMEMBER: You're not just a receptionist - you're a knowledgeable assistant! �
         if self.settings.use_elevenlabs and self.elevenlabs_client and ELEVENLABS_AVAILABLE:
             try:
                 start_time = time.time()
+                print(f"🎤 Generating ElevenLabs speech for: '{text[:50]}...'")
                 
                 # Generate speech with ElevenLabs using the correct client API
                 audio = self.elevenlabs_client.text_to_speech.convert(
                     voice_id=self.settings.elevenlabs_voice_id,
                     text=text,
                     model_id=self.settings.elevenlabs_model,
+                    output_format="mp3_44100_128",  # Standard MP3 format for Twilio
                     voice_settings=VoiceSettings(
                         stability=self.settings.elevenlabs_stability,
                         similarity_boost=self.settings.elevenlabs_similarity_boost,
@@ -234,26 +247,35 @@ REMEMBER: You're not just a receptionist - you're a knowledgeable assistant! �
                     )
                 )
                 
-                # Convert to bytes (audio should be bytes from the generate method)
-                if hasattr(audio, 'content'):
+                # Convert to bytes - ElevenLabs returns an iterator of bytes
+                if hasattr(audio, '__iter__'):
+                    # Handle iterator case (most common)
+                    audio_bytes = b''.join(audio)
+                elif hasattr(audio, 'content'):
+                    # Handle response object case
                     audio_bytes = audio.content
                 elif isinstance(audio, bytes):
+                    # Handle direct bytes case
                     audio_bytes = audio
                 else:
-                    # Handle iterator/generator case
-                    audio_bytes = b''.join(audio)
+                    raise Exception(f"Unexpected audio format: {type(audio)}")
                 
                 generation_time = time.time() - start_time
-                print(f"ElevenLabs speech generated in {generation_time:.2f}s")
+                print(f"✅ ElevenLabs speech generated in {generation_time:.2f}s ({len(audio_bytes)} bytes)")
                 
                 return audio_bytes
                 
             except Exception as e:
-                print(f"ElevenLabs error, falling back to OpenAI: {e}")
+                print(f"❌ ElevenLabs error: {e}")
+                print("🔄 Falling back to OpenAI TTS")
+        else:
+            print(f"🔇 ElevenLabs not available - Client: {bool(self.elevenlabs_client)}, Available: {ELEVENLABS_AVAILABLE}, Enabled: {self.settings.use_elevenlabs}")
         
         # Fallback to OpenAI TTS
         try:
             start_time = time.time()
+            print(f"🎵 Generating OpenAI TTS for: '{text[:50]}...'")
+            
             response = await self.openai_client.audio.speech.create(
                 model=self.settings.voice_model,
                 voice=self.settings.voice_name,
@@ -263,12 +285,12 @@ REMEMBER: You're not just a receptionist - you're a knowledgeable assistant! �
             )
             
             generation_time = time.time() - start_time
-            print(f"OpenAI TTS generated in {generation_time:.2f}s")
+            print(f"✅ OpenAI TTS generated in {generation_time:.2f}s")
             
             return response.content
             
         except Exception as e:
-            print(f"Error generating speech: {e}")
+            print(f"❌ Error generating speech: {e}")
             raise Exception(f"Speech generation failed: {e}")
     
     async def generate_summary(self, conversation_text: str) -> str:
