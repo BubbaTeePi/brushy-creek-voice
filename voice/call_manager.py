@@ -23,10 +23,20 @@ class CallManager:
         
         # Try to initialize Redis for session storage
         try:
-            import redis.asyncio as redis
-            self.redis_client = redis.from_url(self.settings.redis_url)
+            import redis
+            if hasattr(redis, 'asyncio'):
+                # New redis-py version
+                self.redis_client = redis.asyncio.from_url(self.settings.redis_url)
+            else:
+                # Fallback for older versions
+                import aioredis
+                self.redis_client = aioredis.from_url(self.settings.redis_url)
+            
             await self.redis_client.ping()
             print("Redis connected successfully")
+        except ImportError as e:
+            print(f"Redis module not available: {e}")
+            self.redis_client = None
         except Exception as e:
             print(f"Redis not available, using in-memory storage: {e}")
             self.redis_client = None

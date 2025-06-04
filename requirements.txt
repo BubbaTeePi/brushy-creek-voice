@@ -24,6 +24,9 @@ httpcore>=1.0.0
 requests==2.31.0
 aiofiles==23.2.1
 
+# Web scraping (for knowledge updates)
+beautifulsoup4==4.12.2
+
 # Audio processing (lightweight)
 pydub==0.25.1
 
@@ -33,6 +36,9 @@ redis==5.0.1
 # Vector database and embeddings (for knowledge base)
 chromadb==0.4.15
 sentence-transformers==2.2.2
+
+# Security and authentication
+PyJWT==2.8.0
 
 # Logging
 loguru==0.7.2

@@ -1,5 +1,5 @@
 import chromadb
-from chromadb.config import Settings
+from chromadb.config import Settings as ChromaSettings
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
 import json
@@ -16,7 +16,7 @@ class VectorKnowledgeStore:
         # Initialize ChromaDB
         self.client = chromadb.PersistentClient(
             path=str(self.persist_directory),
-            settings=Settings(anonymized_telemetry=False)
+            settings=ChromaSettings(anonymized_telemetry=False)
         )
         
         # Initialize embedding model
