@@ -253,24 +253,9 @@ class TwilioHandler:
             else:
                 greeting = await self.government_service.get_after_hours_message()
             
-            # **GENERATE ELEVENLABS AUDIO FOR GREETING**
-            try:
-                print(f"🎤 Generating ElevenLabs greeting audio...")
-                greeting_audio = await self.call_manager.ai_service.generate_speech(greeting)
-                greeting_url = await self.save_audio_to_temp_url(greeting_audio, call_sid)
-                
-                if greeting_url:
-                    # Play beautiful ElevenLabs greeting
-                    response.play(greeting_url)
-                    print(f"✅ Playing ElevenLabs greeting from: {greeting_url}")
-                else:
-                    # Fallback to Twilio TTS
-                    response.say(greeting)
-                    print("❌ Greeting audio URL failed, using fallback TTS")
-                    
-            except Exception as e:
-                print(f"❌ ElevenLabs greeting failed: {e}")
-                response.say(greeting)
+            # **EMERGENCY FIX** - Use direct TTS instead of broken audio files
+            print(f"🎤 Using Twilio TTS for greeting (ElevenLabs/audio files not available)")
+            response.say(greeting)
             
             # Create initial gather for voice input - OPTIMIZED FOR INTERRUPTION
             gather = Gather(
@@ -326,25 +311,9 @@ class TwilioHandler:
             # Process the user input through AI
             ai_response = await self.call_manager.process_user_input(call_sid, speech_result)
             
-            # **THIS IS THE KEY FIX** - Generate ElevenLabs audio for AI response
-            try:
-                print(f"🎤 Generating ElevenLabs audio for: {ai_response[:50]}...")
-                audio_bytes = await self.call_manager.ai_service.generate_speech(ai_response)
-                audio_url = await self.save_audio_to_temp_url(audio_bytes, call_sid)
-                
-                if audio_url:
-                    # Play the beautiful ElevenLabs audio instead of robotic TTS
-                    response.play(audio_url)
-                    print(f"✅ Playing ElevenLabs audio from: {audio_url}")
-                else:
-                    # Fallback to Twilio TTS if audio serving fails
-                    response.say(ai_response)
-                    print("❌ Audio URL failed, using fallback TTS")
-                    
-            except Exception as e:
-                print(f"❌ ElevenLabs generation failed: {e}")
-                # Fallback to Twilio TTS
-                response.say(ai_response)
+            # **EMERGENCY FIX** - Use direct TTS instead of broken audio files
+            print(f"🎤 Using Twilio TTS for AI response (ElevenLabs/audio files not available)")
+            response.say(ai_response)
             
             # Classify intent to determine if we should continue the conversation
             intent = await self.call_manager.ai_service.classify_intent(speech_result)
@@ -371,18 +340,10 @@ class TwilioHandler:
                 # Fallback for no response
                 response.say("Thanks for calling! Have a great day!")
             else:
-                # End the conversation - generate ElevenLabs for goodbye too
-                try:
-                    goodbye_text = "Thanks for calling! You have a fantastic day, and remember - we're always here when you need us!"
-                    goodbye_audio = await self.call_manager.ai_service.generate_speech(goodbye_text)
-                    goodbye_url = await self.save_audio_to_temp_url(goodbye_audio, call_sid)
-                    
-                    if goodbye_url:
-                        response.play(goodbye_url)
-                    else:
-                        response.say(goodbye_text)
-                except:
-                    response.say("Thanks for calling! Have a wonderful day!")
+                # End the conversation - use direct TTS instead of broken audio files
+                print(f"🎤 Using Twilio TTS for goodbye (ElevenLabs/audio files not available)")
+                goodbye_text = "Thanks for calling! You have a fantastic day, and remember - we're always here when you need us!"
+                response.say(goodbye_text)
             
             # End the call session if we're not continuing
             if not should_continue:
