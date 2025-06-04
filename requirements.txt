@@ -50,6 +50,9 @@ loguru==0.7.2
 # Basic security
 cryptography==41.0.7
 
+# System information (required by OpenAI client)
+distro>=1.6.0
+
 # Core Python utilities and common container dependencies
 click
 idna
