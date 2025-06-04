@@ -116,13 +116,34 @@ async def get_government_info():
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check"""
+    """Detailed health check with debug logging"""
+    twilio_status = twilio_handler.is_configured()
+    openai_status = call_manager.ai_service.is_configured()
+    government_status = True
+
+    # Log detailed status
+    print("[HEALTH CHECK] Twilio Configured:", twilio_status)
+    print("[HEALTH CHECK] OpenAI Configured:", openai_status)
+    print("[HEALTH CHECK] Government Service:", government_status)
+    print("[HEALTH CHECK] TWILIO_ACCOUNT_SID:", settings.twilio_account_sid)
+    print("[HEALTH CHECK] TWILIO_AUTH_TOKEN set:", bool(settings.twilio_auth_token))
+    print("[HEALTH CHECK] OPENAI_API_KEY set:", bool(settings.openai_api_key))
+    print("[HEALTH CHECK] PORT:", settings.app_port)
+    print("[HEALTH CHECK] WEBHOOK_BASE_URL:", settings.webhook_base_url)
+
     return {
-        "status": "healthy",
+        "status": "healthy" if twilio_status and openai_status and government_status else "unhealthy",
         "services": {
-            "twilio": twilio_handler.is_configured(),
-            "openai": call_manager.ai_service.is_configured(),
-            "government": True
+            "twilio": twilio_status,
+            "openai": openai_status,
+            "government": government_status
+        },
+        "env": {
+            "twilio_account_sid": settings.twilio_account_sid,
+            "twilio_auth_token_set": bool(settings.twilio_auth_token),
+            "openai_api_key_set": bool(settings.openai_api_key),
+            "port": settings.app_port,
+            "webhook_base_url": settings.webhook_base_url
         }
     }
 
